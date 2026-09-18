@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel de Controle — Laboratório de Informática</title>
+<style>
+  :root{
+    --bg:#000; --panel:#0d0d0d; --panel2:#111; --border:#242424; --border2:#333;
+    --text:#e4e4e4; --muted:#888; --accent:#00e676; --blue:#2196f3; --warn:#ffb300; --danger:#ff5252;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:'Segoe UI',Consolas,Arial,sans-serif;}
+  ::-webkit-scrollbar{width:10px;height:10px;}
+  ::-webkit-scrollbar-thumb{background:#2a2a2a;border-radius:5px;}
+  ::-webkit-scrollbar-track{background:#000;}
+
+  /* ---------- Header ---------- */
+  header{padding:16px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;background:linear-gradient(180deg,#0a0a0a,#000);}
+  header h1{font-size:18px;margin:0;display:flex;align-items:center;gap:10px;letter-spacing:.5px;}
+  header h1 .live-date{font-size:12px;color:var(--muted);font-weight:400;margin-left:10px;}
+  .stats{display:flex;gap:18px;font-size:12px;color:#aaa;flex-wrap:wrap;}
+  .stats span{display:flex;align-items:center;gap:6px;}
+  .dot{width:8px;height:8px;border-radius:50%;display:inline-block;}
+  .dot.on{background:var(--accent);box-shadow:0 0 6px var(--accent);}
+  .dot.off{background:#555;}
+  .dot.locked{background:var(--warn);box-shadow:0 0 6px var(--warn);}
+  .dot.loggedout{background:var(--blue);box-shadow:0 0 6px var(--blue);}
+  .clock-box{font-size:13px;color:var(--muted);text-align:right;}
+  .clock-box .live-clock{color:var(--text);font-size:16px;font-weight:600;letter-spacing:1px;}
+
+  /* ---------- Toolbar ---------- */
+  .toolbar{display:flex;gap:10px;padding:12px 24px;background:#090909;border-bottom:1px solid var(--border);flex-wrap:wrap;align-items:center;position:sticky;top:0;z-index:20;}
+  .toolbar .sep{width:1px;height:24px;background:var(--border2);margin:0 4px;}
+  .sel-info{font-size:12px;color:var(--muted);margin-left:auto;}
+  .sel-info b{color:var(--accent);}
+  label.checkbox{display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;color:#ccc;user-select:none;}
+  input[type=checkbox]{accent-color:var(--accent);width:15px;height:15px;cursor:pointer;}
+  button.btn{background:#161616;border:1px solid var(--border2);color:#ddd;padding:8px 14px;border-radius:6px;cursor:pointer;font-size:13px;display:inline-flex;align-items:center;gap:6px;transition:.15s;white-space:nowrap;}
+  button.btn:hover:not(:disabled){background:#232323;border-color:#4a4a4a;}
+  button.btn:disabled{opacity:.3;cursor:not-allowed;}
+  button.btn.accent{border-color:var(--accent);color:var(--accent);}
+  button.btn.warn{border-color:var(--warn);color:var(--warn);}
+  button.btn.danger{border-color:var(--danger);color:var(--danger);}
+  button.btn.blue{border-color:var(--blue);color:var(--blue);}
+  button.btn.small{padding:4px 8px;font-size:11px;border-radius:4px;}
+
+  /* ---------- Grid ---------- */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,240px);gap:18px;padding:22px 24px;justify-content:center;}
+  .pc-card{background:var(--panel);border:1px solid var(--border);border-radius:10px;overflow:hidden;cursor:pointer;transition:.15s;position:relative;}
+  .pc-card:hover{border-color:#4a4a4a;transform:translateY(-2px);}
+  .pc-card.selected{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent);}
+  .card-head{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:var(--panel2);border-bottom:1px solid var(--border);}
+  .card-head .left{display:flex;align-items:center;gap:8px;}
+  .card-head .pcname{font-size:12.5px;font-weight:600;letter-spacing:.3px;}
+  .status-badge{font-size:9.5px;padding:2px 7px;border-radius:10px;text-transform:uppercase;letter-spacing:.4px;font-weight:600;}
+  .status-badge.on{background:rgba(0,230,118,.15);color:var(--accent);}
+  .status-badge.off{background:rgba(255,255,255,.06);color:#777;}
+  .status-badge.locked{background:rgba(255,179,0,.15);color:var(--warn);}
+  .status-badge.loggedout{background:rgba(33,150,243,.15);color:var(--blue);}
+
+  .monitor-wrap{padding:12px 10px 4px;background:#050505;}
+  .monitor-bezel{background:#1a1a1a;border:1px solid #2c2c2c;border-radius:6px 6px 2px 2px;padding:5px;}
+  .screen-viewport{overflow:hidden;border-radius:2px;background:#000;position:relative;}
+  .monitor-stand{width:36px;height:8px;background:#222;margin:0 auto;border-radius:0 0 3px 3px;}
+  .monitor-base{width:70px;height:4px;background:#1a1a1a;margin:0 auto;border-radius:2px;}
+
+  .card-foot{display:flex;justify-content:space-between;align-items:center;padding:7px 10px;font-size:11px;color:var(--muted);border-top:1px solid var(--border);}
+  .card-foot .user{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:110px;}
+  .quick-actions{display:flex;gap:4px;}
+  .icon-btn{background:none;border:none;color:#999;cursor:pointer;font-size:13px;padding:2px 4px;border-radius:4px;}
+  .icon-btn:hover{background:#222;color:#fff;}
+
+  /* ---------- Screen canvas (shared by thumbnail + modal) ---------- */
+  .screen-canvas{width:800px;height:500px;position:relative;transform-origin:top left;font-family:'Segoe UI',Arial,sans-serif;overflow:hidden;background:#fff;color:#222;}
+  .msg-overlay{position:absolute;inset:0;background:rgba(0,0,0,.8);display:flex;align-items:center;justify-content:center;z-index:50;}
+  .msg-card{background:#fff;color:#222;width:520px;border-radius:10px;padding:26px;box-shadow:0 10px 40px rgba(0,0,0,.5);}
+  .msg-card .msg-title{display:flex;align-items:center;gap:10px;font-size:20px;font-weight:700;color:#1a237e;margin-bottom:14px;}
+  .msg-card .msg-body{font-size:17px;line-height:1.5;color:#222;margin-bottom:16px;white-space:pre-wrap;word-break:break-word;}
+  .msg-card .msg-time{font-size:12px;color:#888;margin-bottom:18px;}
+  .msg-card button{background:#1a237e;color:#fff;border:none;padding:10px 26px;border-radius:6px;font-size:14px;cursor:pointer;}
+
+  /* off screen */
+  .scr-off{width:100%;height:100%;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;}
+  .scr-off .pwr{font-size:60px;color:#2a2a2a;}
+  .scr-off .txt{color:#3a3a3a;font-size:22px;letter-spacing:3px;font-weight:700;}
+  .scr-off .led{width:8px;height:8px;border-radius:50%;background:#4a0000;box-shadow:0 0 4px #4a0000;}
+
+  /* locked screen */
+  .scr-locked{width:100%;height:100%;background:linear-gradient(135deg,#1e3c72,#2a5298 60%,#1e3c72);display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;gap:8px;position:relative;}
+  .scr-locked .lock-clock{font-size:64px;font-weight:200;letter-spacing:2px;}
+  .scr-locked .lock-date{font-size:18px;opacity:.85;text-transform:capitalize;}
+  .scr-locked .lock-ico{font-size:34px;margin-top:14px;}
+  .scr-locked .lock-msg{font-size:15px;opacity:.9;margin-top:6px;}
+  .scr-locked .lock-user{position:absolute;bottom:26px;font-size:13px;opacity:.75;}
+
+  /* loggedout / login screen */
+  .scr-login{width:100%;height:100%;background:radial-gradient(circle at 50% 30%,#1b1b2e,#0b0b16);display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;gap:18px;}
+  .scr-login .lg-title{font-size:16px;opacity:.8;}
+  .scr-login .lg-avatar{width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#555,#333);display:flex;align-items:center;justify-content:center;font-size:26px;}
+  .scr-login .lg-name{font-size:14px;opacity:.85;}
+  .scr-login .lg-clock{position:absolute;top:16px;right:22px;font-size:14px;opacity:.7;}
+
+  /* desktop */
+  .scr-desktop{width:100%;height:100%;background:linear-gradient(160deg,#3a6186,#89253e);position:relative;}
+  .scr-desktop .icons{display:grid;grid-template-columns:repeat(1,64px);gap:16px;padding:16px;}
+  .scr-desktop .icon{display:flex;flex-direction:column;align-items:center;gap:4px;color:#fff;font-size:11px;text-shadow:0 1px 3px rgba(0,0,0,.6);}
+  .scr-desktop .icon .ic{font-size:26px;}
+  .taskbar{position:absolute;bottom:0;left:0;right:0;height:34px;background:rgba(20,20,25,.9);display:flex;align-items:center;padding:0 10px;gap:12px;color:#fff;font-size:13px;}
+  .taskbar .start{background:#0067c0;padding:5px 10px;border-radius:4px;font-weight:600;}
+  .taskbar .apps{display:flex;gap:14px;font-size:16px;}
+  .taskbar .clockbox{margin-left:auto;font-size:11px;text-align:right;}
+
+  /* browser */
+  .scr-browser{width:100%;height:100%;background:#fff;display:flex;flex-direction:column;}
+  .br-tabs{background:#dee1e6;display:flex;align-items:center;padding:6px 8px 0;gap:4px;}
+  .br-tab{background:#fff;padding:6px 16px;border-radius:8px 8px 0 0;font-size:12px;display:flex;align-items:center;gap:6px;}
+  .br-bar{background:#fff;padding:8px 12px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #ddd;}
+  .br-url{background:#f1f3f4;border-radius:14px;padding:6px 14px;font-size:12px;color:#333;flex:1;}
+  .br-page{flex:1;padding:20px 30px;overflow:hidden;}
+  .br-banner{height:70px;background:linear-gradient(90deg,#4b6cb7,#182848);border-radius:6px;margin-bottom:16px;display:flex;align-items:center;color:#fff;font-size:18px;font-weight:700;padding:0 20px;}
+  .br-line{height:10px;background:#e3e3e3;border-radius:4px;margin-bottom:10px;}
+
+  /* word */
+  .scr-word{width:100%;height:100%;background:#e9edf1;display:flex;flex-direction:column;}
+  .word-ribbon{background:#2b579a;color:#fff;padding:8px 14px;font-size:12px;display:flex;gap:16px;}
+  .word-tools{background:#f3f2f1;padding:6px 14px;display:flex;gap:10px;font-size:15px;border-bottom:1px solid #d0d0d0;}
+  .word-page{background:#fff;width:600px;margin:16px auto;padding:30px 40px;box-shadow:0 2px 10px rgba(0,0,0,.15);}
+  .word-page .wline{height:9px;background:#dcdcdc;border-radius:3px;margin-bottom:9px;}
+  .word-page .wtitle{height:16px;width:60%;background:#8a8a8a;border-radius:3px;margin-bottom:16px;}
+
+  /* excel */
+  .scr-excel{width:100%;height:100%;background:#fff;display:flex;flex-direction:column;}
+  .xl-tools{background:#0e6b33;color:#fff;padding:8px 14px;font-size:12px;}
+  .xl-grid{flex:1;display:grid;grid-template-columns:34px repeat(8,1fr);grid-template-rows:22px repeat(13,1fr);}
+  .xl-grid .hcell{background:#e8e8e8;border:1px solid #d4d4d4;font-size:10px;display:flex;align-items:center;justify-content:center;color:#555;}
+  .xl-grid .cell{border:1px solid #e6e6e6;font-size:10px;display:flex;align-items:center;padding-left:4px;color:#333;}
+
+  /* code */
+  .scr-code{width:100%;height:100%;background:#1e1e1e;display:flex;color:#ccc;font-family:Consolas,monospace;font-size:12px;}
+  .code-side{width:150px;background:#252526;padding:10px 8px;border-right:1px solid #333;}
+  .code-side .cf{padding:3px 0;color:#ccc;}
+  .code-main{flex:1;padding:10px 14px;}
+  .code-tab{background:#2d2d2d;padding:6px 12px;display:inline-block;border-top:2px solid #0af;margin-bottom:8px;}
+  .code-line{display:flex;gap:12px;}
+  .code-line .ln{color:#5a5a5a;width:18px;text-align:right;}
+  .kw{color:#569cd6;} .str{color:#ce9178;} .cm{color:#6a9955;} .fn{color:#dcdcaa;} .nu{color:#b5cea8;}
+
+  /* terminal */
+  .scr-terminal{width:100%;height:100%;background:#0c0c0c;color:#3ee06a;font-family:Consolas,monospace;font-size:13px;padding:14px 16px;}
+  .scr-terminal .ln{margin-bottom:6px;}
+  .scr-terminal .prompt{color:#3ee06a;}
+  .scr-terminal .out{color:#ccc;}
+
+  /* video */
+  .scr-video{width:100%;height:100%;background:#000;display:flex;flex-direction:column;justify-content:center;position:relative;}
+  .vid-title{position:absolute;top:14px;left:18px;color:#fff;font-size:13px;opacity:.8;}
+  .vid-play{width:70px;height:70px;border-radius:50%;background:rgba(255,255,255,.15);color:#fff;display:flex;align-items:center;justify-content:center;font-size:30px;margin:0 auto;}
+  .vid-controls{position:absolute;bottom:0;left:0;right:0;padding:12px 18px;background:linear-gradient(0deg,rgba(0,0,0,.8),transparent);}
+  .vid-bar{height:4px;background:#555;border-radius:2px;margin-bottom:10px;}
+  .vid-bar .fill{height:100%;width:38%;background:#e50914;border-radius:2px;}
+  .vid-icons{display:flex;gap:16px;color:#fff;font-size:15px;}
+
+  /* game */
+  .scr-game{width:100%;height:100%;background:linear-gradient(180deg,#87ceeb,#e0f7fa);position:relative;overflow:hidden;}
+  .game-hud{position:absolute;top:10px;left:14px;right:14px;display:flex;justify-content:space-between;color:#fff;font-weight:700;font-family:Consolas,monospace;text-shadow:0 1px 2px #000;}
+  .game-block{position:absolute;background:#8d6e63;border:2px solid #5d4037;}
+  .game-sprite{position:absolute;width:34px;height:34px;background:#ffca28;border-radius:6px;border:2px solid #f57f17;}
+  .game-coin{position:absolute;width:16px;height:16px;background:#ffd700;border-radius:50%;box-shadow:0 0 6px #ffae00;}
+  .game-ground{position:absolute;bottom:0;left:0;right:0;height:60px;background:#33691e;}
+
+  /* photos */
+  .scr-photos{width:100%;height:100%;background:#111;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;}
+  .photo-main{width:420px;height:280px;border-radius:6px;}
+  .photo-strip{display:flex;gap:8px;}
+  .photo-thumb{width:50px;height:36px;border-radius:4px;opacity:.6;}
+  .photo-thumb.active{opacity:1;outline:2px solid #fff;}
+  .photo-name{color:#ccc;font-size:12px;}
+
+  /* music */
+  .scr-music{width:100%;height:100%;background:linear-gradient(160deg,#2b1055,#7597de);display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;gap:10px;}
+  .music-art{width:150px;height:150px;border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.4);}
+  .music-title{font-size:16px;font-weight:700;margin-top:8px;}
+  .music-artist{font-size:12px;opacity:.75;}
+  .music-bar{width:280px;height:4px;background:rgba(255,255,255,.25);border-radius:2px;margin-top:10px;}
+  .music-bar .fill{height:100%;width:55%;background:#fff;border-radius:2px;}
+  .music-eq{display:flex;gap:3px;align-items:flex-end;height:20px;margin-top:8px;}
+  .music-eq span{width:4px;background:#fff;animation:eq 1s ease-in-out infinite alternate;}
+
+  /* chat */
+  .scr-chat{width:100%;height:100%;background:#fff;display:flex;}
+  .chat-side{width:190px;background:#f7f7f7;border-right:1px solid #eee;padding:10px;}
+  .chat-contact{display:flex;align-items:center;gap:8px;padding:8px 6px;border-radius:6px;font-size:12px;}
+  .chat-contact.active{background:#e8f0fe;}
+  .chat-av{width:26px;height:26px;border-radius:50%;background:#90a4ae;display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;}
+  .chat-main{flex:1;display:flex;flex-direction:column;padding:14px;}
+  .bubble{max-width:60%;padding:9px 13px;border-radius:14px;font-size:12.5px;margin-bottom:8px;}
+  .bubble.in{background:#f0f0f0;align-self:flex-start;}
+  .bubble.out{background:#1976d2;color:#fff;align-self:flex-end;}
+  .chat-input{margin-top:auto;background:#f0f0f0;border-radius:20px;padding:10px 16px;font-size:12px;color:#999;}
+
+  /* slides */
+  .scr-slides{width:100%;height:100%;background:#e8e8e8;display:flex;}
+  .slide-side{width:130px;background:#dcdcdc;padding:10px 8px;display:flex;flex-direction:column;gap:8px;}
+  .slide-thumb{background:#fff;height:52px;border-radius:3px;border:2px solid transparent;}
+  .slide-thumb.active{border-color:#d35400;}
+  .slide-main{flex:1;display:flex;align-items:center;justify-content:center;}
+  .slide-canvas{background:#fff;width:560px;height:340px;box-shadow:0 4px 16px rgba(0,0,0,.15);padding:36px 44px;}
+  .slide-canvas h2{color:#d35400;font-size:26px;margin:0 0 20px;border-bottom:3px solid #d35400;padding-bottom:10px;}
+  .slide-canvas li{font-size:14px;color:#333;margin-bottom:10px;}
+
+  @keyframes eq{from{height:4px;}to{height:20px;}}
+
+  /* ---------- Modal ---------- */
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);display:flex;align-items:center;justify-content:center;z-index:100;padding:20px;}
+  .modal{background:var(--panel);border:1px solid var(--border2);border-radius:12px;width:840px;max-width:100%;max-height:94vh;overflow:auto;}
+  .modal-head{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--border);}
+  .modal-head h2{font-size:15px;margin:0;display:flex;align-items:center;gap:10px;}
+  .modal-head .close{background:none;border:none;color:#999;font-size:20px;cursor:pointer;}
+  .modal-body{padding:18px;}
+  .modal-screen-wrap{background:#050505;border:1px solid #262626;border-radius:8px;padding:10px;margin-bottom:16px;}
+  .modal-info{display:flex;gap:22px;font-size:12.5px;color:#aaa;margin-bottom:14px;flex-wrap:wrap;}
+  .modal-info b{color:#ddd;}
+  .modal-actions{display:flex;gap:8px;flex-wrap:wrap;}
+
+  .small-modal{width:460px;}
+  textarea#msgText{width:100%;min-height:100px;background:#0a0a0a;border:1px solid var(--border2);color:#eee;border-radius:6px;padding:10px;font-size:13px;font-family:inherit;resize:vertical;}
+  .target-chip{font-size:11px;background:#1c1c1c;border:1px solid #333;padding:3px 9px;border-radius:12px;color:#ccc;}
+  .target-chips{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0;}
+
+  /* activity log */
+  .log-panel{margin:0 24px 24px;background:var(--panel);border:1px solid var(--border);border-radius:10px;}
+  .log-head{padding:10px 16px;border-bottom:1px solid var(--border);font-size:13px;font-weight:600;display:flex;justify-content:space-between;align-items:center;color:#ccc;}
+  .log-body{max-height:150px;overflow-y:auto;padding:8px 16px;font-family:Consolas,monospace;font-size:11.5px;color:#8bc34a;}
+  .log-body div{padding:2px 0;color:#9e9e9e;}
+  .log-body div span{color:#5adf7a;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🖥️ Painel de Controle — Laboratório de Informática <span class="live-date"></span></h1>
+  <div class="stats" id="stats"></div>
+  <div class="clock-box">Horário do sistema<br><span class="live-clock">--:--:--</span></div>
+</header>
+
+<div class="toolbar">
+  <label class="checkbox"><input type="checkbox" id="selectAllChk" onchange="toggleSelectAll(this.checked)"> Selecionar todos</label>
+  <div class="sep"></div>
+  <button class="btn warn" id="btnLock" onclick="lockSelected()">🔒 Bloquear tela</button>
+  <button class="btn accent" id="btnUnlock" onclick="unlockSelected()">🔓 Desbloquear</button>
+  <button class="btn danger" id="btnLogoff" onclick="logoffSelected()">⏻ Encerrar sessão</button>
+  <div class="sep"></div>
+  <button class="btn" id="btnPowerOn" onclick="powerOnSelected()">🔌 Ligar</button>
+  <button class="btn" id="btnPowerOff" onclick="powerOffSelected()">⭘ Desligar</button>
+  <div class="sep"></div>
+  <button class="btn blue" id="btnMsg" onclick="openMessageComposer()">💬 Enviar mensagem</button>
+  <div class="sel-info" id="selInfo">Nenhum computador selecionado</div>
+</div>
+
+<div class="grid" id="grid"></div>
+
+<div class="log-panel">
+  <div class="log-head"><span>📋 Registro de atividades</span><button class="btn small" onclick="clearLog()">Limpar</button></div>
+  <div class="log-body" id="logBody"></div>
+</div>
+
+<div id="modalRoot"></div>
+
+<script>
+/* ==================== DADOS ==================== */
+const USERS = ['Ana Silva','Bruno Costa','Carla Souza','Diego Lima','Elisa Rocha','Fábio Alves','Gabriela Dias','Hugo Martins',
+  'Isabela Nunes','João Pereira','Karina Melo','Lucas Teixeira','Mariana Ramos','Nicolas Barros','Olivia Cardoso','Pedro Farias',
+  'Queila Duarte','Rafael Gomes','Sofia Castro','Tiago Batista'];
+
+const SCREEN_TYPES = ['desktop','browser','word','excel','code','terminal','video','game','photos','music','chat','slides'];
+const SCREEN_LABELS = {desktop:'Área de trabalho',browser:'Navegador',word:'Editor de texto',excel:'Planilha',code:'Editor de código',
+  terminal:'Terminal',video:'Player de vídeo',game:'Jogo',photos:'Visualizador de fotos',music:'Player de música',chat:'Mensageiro',slides:'Apresentação'};
+
+let computers = Array.from({length:20}, (_,i)=>{
+  const id=i+1;
+  const off = [3,7,14].includes(id); // alguns começam desligados
+  return {
+    id,
+    name:`PC-${String(id).padStart(2,'0')}`,
+    status: off ? 'off' : 'on', // on | off | locked | loggedout
+    screenType: SCREEN_TYPES[i % SCREEN_TYPES.length],
+    user: USERS[i],
+    message: null, // {text, time}
+  };
+});
+
+let selected = new Set();
+let currentDetailId = null;
+let msgTargets = [];
+
+/* ==================== HELPERS ==================== */
+function log(text){
+  const el = document.getElementById('logBody');
+  const time = new Date().toLocaleTimeString('pt-BR');
+  const div = document.createElement('div');
+  div.innerHTML = `<span>[${time}]</span> ${text}`;
+  el.prepend(div);
+}
+function clearLog(){ document.getElementById('logBody').innerHTML=''; }
+
+function getComputer(id){ return computers.find(c=>c.id===id); }
+
+function wrapCanvas(innerHtml, widthPx){
+  const scale = widthPx/800;
+  const h = Math.round(500*scale);
+  return `<div class="screen-viewport" style="width:${widthPx}px;height:${h}px;">
+    <div class="screen-canvas" style="transform:scale(${scale});">${innerHtml}</div>
+  </div>`;
+}
+
+/* ==================== TELAS SIMULADAS ==================== */
+function screenOff(){
+  return `<div class="scr-off"><div class="pwr">⏻</div><div class="txt">COMPUTADOR DESLIGADO</div><div class="led"></div></div>`;
+}
+function screenLocked(c){
+  return `<div class="scr-locked">
+    <div class="lock-clock live-clock">--:--</div>
+    <div class="lock-date live-date-full"></div>
+    <div class="lock-ico">🔒</div>
+    <div class="lock-msg">Tela bloqueada pelo administrador</div>
+    <div class="lock-user">Sessão de ${c.user} • ${c.name}</div>
+  </div>`;
+}
+function screenLogin(c){
+  return `<div class="scr-login">
+    <div class="lg-clock live-clock">--:--</div>
+    <div class="lg-title">${c.name} — Selecione um usuário</div>
+    <div class="lg-avatar">👤</div>
+    <div class="lg-name">Sessão encerrada</div>
+  </div>`;
+}
+function screenDesktop(c){
+  return `<div class="scr-desktop">
+    <div class="icons">
+      <div class="icon"><div class="ic">📁</div>Documentos</div>
+      <div class="icon"><div class="ic">🗑️</div>Lixeira</div>
+      <div class="icon"><div class="ic">🌐</div>Navegador</div>
+      <div class="icon"><div class="ic">📄</div>Relatorio.docx</div>
+    </div>
+    <div class="taskbar">
+      <div class="start">⊞ Iniciar</div>
+      <div class="apps">🌐 📁 📊 🎵</div>
+      <div class="clockbox"><div class="live-clock">--:--</div></div>
+    </div>
+  </div>`;
+}
+function screenBrowser(c){
+  return `<div class="scr-browser">
+    <div class="br-tabs"><div class="br-tab">🌐 Portal Escolar</div></div>
+    <div class="br-bar"><span>←</span><span>→</span><div class="br-url">🔒 https://www.escola.edu.br/portal</div></div>
+    <div class="br-page">
+      <div class="br-banner">Bem-vindo(a), ${c.user}</div>
+      <div class="br-line" style="width:90%"></div><div class="br-line" style="width:80%"></div><div class="br-line" style="width:85%"></div>
+      <div class="br-line" style="width:60%"></div>
+    </div>
+  </div>`;
+}
+function screenWord(c){
+  return `<div class="scr-word">
+    <div class="word-ribbon">Arquivo &nbsp; Página Inicial &nbsp; Inserir &nbsp; Layout</div>
+    <div class="word-tools">🅱️ 𝑰 U̲ ▤ ▥ ▦</div>
+    <div class="word-page">
+      <div class="wtitle"></div>
+      <div class="wline" style="width:95%"></div><div class="wline" style="width:88%"></div><div class="wline" style="width:92%"></div>
+      <div class="wline" style="width:70%"></div><br>
+      <div class="wline" style="width:90%"></div><div class="wline" style="width:80%"></div>
+    </div>
+  </div>`;
+}
+function screenExcel(c){
+  const cols=8, rows=13;
+  let hcells = '<div class="hcell"></div>' + Array.from({length:cols},(_,i)=>`<div class="hcell">${String.fromCharCode(65+i)}</div>`).join('');
+  let body='';
+  for(let r=1;r<=rows;r++){
+    body += `<div class="hcell">${r}</div>`;
+    for(let cI=0;cI<cols;cI++){
+      const val = (r<=3 && cI<3) ? Math.floor(Math.random()*900+100) : '';
+      body += `<div class="cell">${val}</div>`;
+    }
+  }
+  return `<div class="scr-excel"><div class="xl-tools">📊 Planilha1 - Notas.xlsx</div><div class="xl-grid">${hcells}${body}</div></div>`;
+}
+function screenCode(c){
+  const lines = [
+    `<span class="kw">function</span> <span class="fn">calcularMedia</span>(notas) {`,
+    `&nbsp;&nbsp;<span class="kw">let</span> soma = <span class="nu">0</span>;`,
+    `&nbsp;&nbsp;<span class="kw">for</span> (<span class="kw">const</span> n <span class="kw">of</span> notas) soma += n;`,
+    `&nbsp;&nbsp;<span class="cm">// retorna a média da turma</span>`,
+    `&nbsp;&nbsp;<span class="kw">return</span> soma / notas.length;`,
+    `}`,
+    `console.<span class="fn">log</span>(<span class="str">"Média:"</span>, calcularMedia([7,8,9]));`
+  ];
+  return `<div class="scr-code">
+    <div class="code-side">
+      <div class="code-tab" style="display:block;">📁 projeto</div>
+      <div class="cf">📄 app.js</div><div class="cf">📄 index.html</div><div class="cf">📄 style.css</div>
+    </div>
+    <div class="code-main">
+      <div class="code-tab">app.js</div>
+      ${lines.map((l,i)=>`<div class="code-line"><span class="ln">${i+1}</span><span>${l}</span></div>`).join('')}
+    </div>
+  </div>`;
+}
+function screenTerminal(c){
+  const u = c.user.toLowerCase().split(' ')[0];
+  return `<div class="scr-terminal">
+    <div class="ln"><span class="prompt">${u}@${c.name.toLowerCase()}:~$</span> ls</div>
+    <div class="ln out">Documentos  Downloads  Imagens  Projetos</div>
+    <div class="ln"><span class="prompt">${u}@${c.name.toLowerCase()}:~$</span> python3 exercicio.py</div>
+    <div class="ln out">Digite um número: 10<br>Resultado: 100</div>
+    <div class="ln"><span class="prompt">${u}@${c.name.toLowerCase()}:~$</span> <span style="opacity:.6">▌</span></div>
+  </div>`;
+}
+function screenVideo(c){
+  return `<div class="scr-video">
+    <div class="vid-title">▶ Aula_de_Matematica.mp4</div>
+    <div class="vid-play">▶</div>
+    <div class="vid-controls">
+      <div class="vid-bar"><div class="fill"></div></div>
+      <div class="vid-icons"><span>⏸</span><span>🔊</span><span style="margin-left:auto">⛶</span></div>
+    </div>
+  </div>`;
+}
+function screenGame(c){
+  return `<div class="scr-game">
+    <div class="game-hud"><span>PONTOS: 1280</span><span>❤️❤️❤️</span></div>
+    <div class="game-block" style="left:40px;top:120px;width:70px;height:20px;"></div>
+    <div class="game-block" style="left:200px;top:180px;width:70px;height:20px;"></div>
+    <div class="game-block" style="left:400px;top:100px;width:100px;height:20px;"></div>
+    <div class="game-sprite" style="left:220px;top:150px;"></div>
+    <div class="game-coin" style="left:410px;top:75px;"></div>
+    <div class="game-coin" style="left:440px;top:75px;"></div>
+    <div class="game-ground"></div>
+  </div>`;
+}
+function screenPhotos(c){
+  return `<div class="scr-photos">
+    <div class="photo-main" style="background:linear-gradient(135deg,#ff9966,#ff5e62);"></div>
+    <div class="photo-strip">
+      <div class="photo-thumb active" style="background:linear-gradient(135deg,#ff9966,#ff5e62);"></div>
+      <div class="photo-thumb" style="background:linear-gradient(135deg,#42275a,#734b6d);"></div>
+      <div class="photo-thumb" style="background:linear-gradient(135deg,#11998e,#38ef7d);"></div>
+      <div class="photo-thumb" style="background:linear-gradient(135deg,#396afc,#2948ff);"></div>
+    </div>
+    <div class="photo-name">IMG_0234.jpg — Pasta: Trabalho de Ciências</div>
+  </div>`;
+}
+function screenMusic(c){
+  return `<div class="scr-music">
+    <div class="music-art" style="background:linear-gradient(135deg,#f7971e,#ffd200);"></div>
+    <div class="music-title">Estudando com Foco</div>
+    <div class="music-artist">Playlist • Lo-fi Beats</div>
+    <div class="music-bar"><div class="fill"></div></div>
+    <div class="music-eq">${Array.from({length:10},(_,i)=>`<span style="height:${6+Math.random()*14}px;animation-delay:${i*0.08}s"></span>`).join('')}</div>
+  </div>`;
+}
+function screenChat(c){
+  return `<div class="scr-chat">
+    <div class="chat-side">
+      <div class="chat-contact active"><div class="chat-av">P</div>Prof. Ana</div>
+      <div class="chat-contact"><div class="chat-av">T</div>Turma 3ºA</div>
+      <div class="chat-contact"><div class="chat-av">S</div>Suporte TI</div>
+    </div>
+    <div class="chat-main">
+      <div class="bubble in">Bom dia! Enviei o material da aula.</div>
+      <div class="bubble out">Obrigado, professora!</div>
+      <div class="bubble in">Qualquer dúvida me chame 🙂</div>
+      <div class="chat-input">Digite uma mensagem...</div>
+    </div>
+  </div>`;
+}
+function screenSlides(c){
+  return `<div class="scr-slides">
+    <div class="slide-side">
+      <div class="slide-thumb active"></div><div class="slide-thumb"></div><div class="slide-thumb"></div><div class="slide-thumb"></div>
+    </div>
+    <div class="slide-main">
+      <div class="slide-canvas">
+        <h2>Sistema Solar</h2>
+        <ul>
+          <li>O Sol é a estrela central</li>
+          <li>Oito planetas orbitam o Sol</li>
+          <li>A Terra é o terceiro planeta</li>
+        </ul>
+      </div>
+    </div>
+  </div>`;
+}
+
+const SCREEN_RENDERERS = {
+  desktop:screenDesktop, browser:screenBrowser, word:screenWord, excel:screenExcel, code:screenCode,
+  terminal:screenTerminal, video:screenVideo, game:screenGame, photos:screenPhotos, music:screenMusic,
+  chat:screenChat, slides:screenSlides
+};
+
+function renderMessageOverlay(c){
+  if(!c.message) return '';
+  return `<div class="msg-overlay">
+    <div class="msg-card">
+      <div class="msg-title">✉️ Mensagem do Administrador</div>
+      <div class="msg-body">${escapeHtml(c.message.text)}</div>
+      <div class="msg-time">Recebida às ${c.message.time}</div>
+      <button onclick="dismissMessage(${c.id}, event)">OK</button>
+    </div>
+  </div>`;
+}
+
+function renderScreenInner(c){
+  let base;
+  if(c.status==='off') base = screenOff();
+  else if(c.status==='locked') base = `<div style="position:relative;width:100%;height:100%;">${screenLocked(c)}${renderMessageOverlay(c)}</div>`;
+  else if(c.status==='loggedout') base = `<div style="position:relative;width:100%;height:100%;">${screenLogin(c)}${renderMessageOverlay(c)}</div>`;
+  else base = `<div style="position:relative;width:100%;height:100%;">${SCREEN_RENDERERS[c.screenType](c)}${renderMessageOverlay(c)}</div>`;
+  return base;
+}
+
+function escapeHtml(s){
+  const d = document.createElement('div'); d.textContent = s; return d.innerHTML;
+}
+
+/* ==================== RENDER PRINCIPAL ==================== */
+function render(){
+  renderStats();
+  renderGrid();
+  renderToolbarState();
+  if(currentDetailId) renderModal();
+}
+
+function renderStats(){
+  const on = computers.filter(c=>c.status==='on').length;
+  const off = computers.filter(c=>c.status==='off').length;
+  const locked = computers.filter(c=>c.status==='locked').length;
+  const loggedout = computers.filter(c=>c.status==='loggedout').length;
+  document.getElementById('stats').innerHTML = `
+    <span><span class="dot on"></span>${on} ligados</span>
+    <span><span class="dot off"></span>${off} desligados</span>
+    <span><span class="dot locked"></span>${locked} bloqueados</span>
+    <span><span class="dot loggedout"></span>${loggedout} sem sessão</span>`;
+}
+
+function statusLabel(s){
+  return {on:'Ligado', off:'Desligado', locked:'Bloqueado', loggedout:'Sem sessão'}[s];
+}
+
+function renderGrid(){
+  const grid = document.getElementById('grid');
+  grid.innerHTML = computers.map(c=>{
+    const sel = selected.has(c.id);
+    const screenHtml = wrapCanvas(renderScreenInner(c), 216);
+    return `<div class="pc-card ${sel?'selected':''}" onclick="openDetail(${c.id})">
+      <div class="card-head">
+        <div class="left">
+          <input type="checkbox" onclick="event.stopPropagation()" onchange="toggleSelect(${c.id})" ${sel?'checked':''}>
+          <span class="pcname">${c.name}</span>
+        </div>
+        <span class="status-badge ${c.status}">${statusLabel(c.status)}</span>
+      </div>
+      <div class="monitor-wrap">
+        <div class="monitor-bezel">${screenHtml}</div>
+        <div class="monitor-stand"></div>
+        <div class="monitor-base"></div>
+      </div>
+      <div class="card-foot">
+        <span class="user">${c.status==='off' ? '—' : c.user}</span>
+        <div class="quick-actions">
+          ${c.status==='on' ? `<button class="icon-btn" title="Bloquear" onclick="event.stopPropagation();quickAction('lock',${c.id})">🔒</button>` : ''}
+          ${c.status==='locked' ? `<button class="icon-btn" title="Desbloquear" onclick="event.stopPropagation();quickAction('unlock',${c.id})">🔓</button>` : ''}
+          ${(c.status==='on'||c.status==='locked') ? `<button class="icon-btn" title="Encerrar sessão" onclick="event.stopPropagation();quickAction('logoff',${c.id})">⏻</button>` : ''}
+          ${c.status!=='off' ? `<button class="icon-btn" title="Enviar mensagem" onclick="event.stopPropagation();openMessageComposer([${c.id}])">💬</button>` : ''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('selectAllChk').checked = selected.size === computers.length;
+}
+
+function renderToolbarState(){
+  const ids = [...selected];
+  const info = document.getElementById('selInfo');
+  info.innerHTML = ids.length ? `<b>${ids.length}</b> computador(es) selecionado(s)` : 'Nenhum computador selecionado';
+  const anyOn = ids.some(id=>getComputer(id).status==='on');
+  const anyLocked = ids.some(id=>getComputer(id).status==='locked');
+  const anySessioned = ids.some(id=>['on','locked'].includes(getComputer(id).status));
+  const anyOff = ids.some(id=>getComputer(id).status==='off');
+  const anyNotOff = ids.some(id=>getComputer(id).status!=='off');
+  document.getElementById('btnLock').disabled = !anyOn;
+  document.getElementById('btnUnlock').disabled = !anyLocked;
+  document.getElementById('btnLogoff').disabled = !anySessioned;
+  document.getElementById('btnPowerOn').disabled = !anyOff;
+  document.getElementById('btnPowerOff').disabled = !anyNotOff;
+  document.getElementById('btnMsg').disabled = !anyNotOff;
+}
+
+/* ==================== SELEÇÃO ==================== */
+function toggleSelect(id){
+  if(selected.has(id)) selected.delete(id); else selected.add(id);
+  render();
+}
+function toggleSelectAll(checked){
+  selected = checked ? new Set(computers.map(c=>c.id)) : new Set();
+  render();
+}
+
+/* ==================== AÇÕES ==================== */
+function lockSelected(){ applyToSelected(id=>{ const c=getComputer(id); if(c.status==='on'){ c.status='locked'; log(`Tela de <b>${c.name}</b> foi bloqueada.`);}}); }
+function unlockSelected(){ applyToSelected(id=>{ const c=getComputer(id); if(c.status==='locked'){ c.status='on'; log(`Tela de <b>${c.name}</b> foi desbloqueada.`);}}); }
+function logoffSelected(){ applyToSelected(id=>{ const c=getComputer(id); if(['on','locked'].includes(c.status)){ c.status='loggedout'; c.message=null; log(`Sessão encerrada em <b>${c.name}</b>.`);}}); }
+function powerOnSelected(){ applyToSelected(id=>{ const c=getComputer(id); if(c.status==='off'){ c.status='on'; log(`<b>${c.name}</b> foi ligado.`);}}); }
+function powerOffSelected(){ applyToSelected(id=>{ const c=getComputer(id); if(c.status!=='off'){ c.status='off'; c.message=null; log(`<b>${c.name}</b> foi desligado.`);}}); }
+
+function applyToSelected(fn){
+  if(selected.size===0) return;
+  selected.forEach(fn);
+  render();
+}
+
+function quickAction(action, id){
+  const c = getComputer(id);
+  if(action==='lock' && c.status==='on'){ c.status='locked'; log(`Tela de <b>${c.name}</b> foi bloqueada.`); }
+  if(action==='unlock' && c.status==='locked'){ c.status='on'; log(`Tela de <b>${c.name}</b> foi desbloqueada.`); }
+  if(action==='logoff' && ['on','locked'].includes(c.status)){ c.status='loggedout'; c.message=null; log(`Sessão encerrada em <b>${c.name}</b>.`); }
+  if(action==='login' && c.status==='loggedout'){ c.status='on'; log(`Usuário fez login novamente em <b>${c.name}</b>.`); }
+  if(action==='poweron' && c.status==='off'){ c.status='on'; log(`<b>${c.name}</b> foi ligado.`); }
+  if(action==='poweroff' && c.status!=='off'){ c.status='off'; c.message=null; log(`<b>${c.name}</b> foi desligado.`); }
+  render();
+}
+
+function dismissMessage(id, ev){
+  if(ev) ev.stopPropagation();
+  const c = getComputer(id);
+  c.message = null;
+  render();
+}
+
+/* ==================== MODAL DE DETALHE ==================== */
+function openDetail(id){ currentDetailId = id; renderModal(); }
+function closeDetail(){ currentDetailId = null; document.getElementById('modalRoot').innerHTML=''; }
+
+function renderModal(){
+  const c = getComputer(currentDetailId);
+  if(!c){ closeDetail(); return; }
+  const screenHtml = wrapCanvas(renderScreenInner(c), 760);
+  document.getElementById('modalRoot').innerHTML = `
+  <div class="overlay" onclick="if(event.target===this) closeDetail()">
+    <div class="modal">
+      <div class="modal-head">
+        <h2>🖥️ ${c.name} <span class="status-badge ${c.status}">${statusLabel(c.status)}</span></h2>
+        <button class="close" onclick="closeDetail()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-info">
+          <span>Usuário: <b>${c.status==='off' ? '—' : c.user}</b></span>
+          <span>Aplicação: <b>${c.status==='on' ? SCREEN_LABELS[c.screenType] : '—'}</b></span>
+        </div>
+        <div class="modal-screen-wrap">${screenHtml}</div>
+        <div class="modal-actions">
+          ${c.status==='on' ? `<button class="btn warn" onclick="quickAction('lock',${c.id})">🔒 Bloquear tela</button>` : ''}
+          ${c.status==='locked' ? `<button class="btn accent" onclick="quickAction('unlock',${c.id})">🔓 Desbloquear</button>` : ''}
+          ${['on','locked'].includes(c.status) ? `<button class="btn danger" onclick="quickAction('logoff',${c.id})">⏻ Encerrar sessão</button>` : ''}
+          ${c.status==='loggedout' ? `<button class="btn accent" onclick="quickAction('login',${c.id})">🔑 Simular login</button>` : ''}
+          ${c.status==='off' ? `<button class="btn" onclick="quickAction('poweron',${c.id})">🔌 Ligar</button>` : `<button class="btn" onclick="quickAction('poweroff',${c.id})">⭘ Desligar</button>`}
+          ${c.status!=='off' ? `<button class="btn blue" onclick="openMessageComposer([${c.id}])">💬 Enviar mensagem</button>` : ''}
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ==================== MODAL DE MENSAGEM ==================== */
+function openMessageComposer(ids){
+  msgTargets = ids && ids.length ? ids : [...selected];
+  msgTargets = msgTargets.filter(id=>getComputer(id).status!=='off');
+  if(msgTargets.length===0){ alert('Selecione ao menos um computador ligado para enviar uma mensagem.'); return; }
+  const chips = msgTargets.map(id=>`<span class="target-chip">${getComputer(id).name}</span>`).join('');
+  document.getElementById('modalRoot').insertAdjacentHTML('beforeend', `
+  <div class="overlay" id="msgOverlay" onclick="if(event.target===this) closeMessageComposer()">
+    <div class="modal small-modal">
+      <div class="modal-head"><h2>💬 Enviar mensagem</h2><button class="close" onclick="closeMessageComposer()">✕</button></div>
+      <div class="modal-body">
+        <div class="target-chips">${chips}</div>
+        <textarea id="msgText" placeholder="Digite a mensagem para os alunos..."></textarea>
+        <div class="modal-actions" style="margin-top:14px;">
+          <button class="btn blue" onclick="sendComposedMessage()">Enviar</button>
+          <button class="btn" onclick="closeMessageComposer()">Cancelar</button>
+        </div>
+      </div>
+    </div>
+  </div>`);
+  document.getElementById('msgText').focus();
+}
+function closeMessageComposer(){
+  const el = document.getElementById('msgOverlay');
+  if(el) el.remove();
+}
+function sendComposedMessage(){
+  const text = document.getElementById('msgText').value.trim();
+  if(!text){ alert('Digite uma mensagem antes de enviar.'); return; }
+  const time = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  msgTargets.forEach(id=>{
+    const c = getComputer(id);
+    c.message = {text, time};
+  });
+  log(`Mensagem enviada para <b>${msgTargets.map(id=>getComputer(id).name).join(', ')}</b>: "${escapeHtml(text)}"`);
+  closeMessageComposer();
+  render();
+}
+
+/* ==================== RELÓGIO ==================== */
+function updateClocks(){
+  const now = new Date();
+  const time = now.toLocaleTimeString('pt-BR');
+  const shortTime = now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  const date = now.toLocaleDateString('pt-BR',{weekday:'long', day:'2-digit', month:'long'});
+  document.querySelectorAll('.live-clock').forEach(el=>el.textContent = el.classList.contains('lg-clock') ? shortTime : shortTime);
+  document.querySelectorAll('.live-date-full').forEach(el=>el.textContent = date);
+  document.querySelector('header .clock-box .live-clock').textContent = time;
+  document.querySelector('header .live-date').textContent = date;
+}
+setInterval(updateClocks, 1000);
+
+/* ==================== INIT ==================== */
+render();
+updateClocks();
+log('Sistema de gerenciamento do laboratório iniciado.');
+</script>
+</body>
+</html>
